@@ -34,4 +34,4 @@ if __name__ == '__main__':
   except KeyboardInterrupt:
     pass
   finally:
-    RS0010_screen.gpio_cleanup()
+    RS0010_screen.close(True)

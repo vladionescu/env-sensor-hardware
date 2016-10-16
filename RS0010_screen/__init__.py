@@ -173,6 +173,7 @@ class RS0010_screen(object):
   def line2(self, message=""):
     self.lcd_string(message, self.LCD_LINE_2)
 
+  @staticmethod
   def close(self, clear=False):
     if clear:
       self.clear()
