@@ -1,6 +1,7 @@
 #!/usr/bin/python
 # RS0010_screen package by Vlad Ionescu (github.com/vladionescu) is based on:
 #   lcd_16x2.py by Matt Hawkins (http://www.raspberrypi-spy.co.uk/)
+# With improvements by Robert Coward/Paul Carpenter
 #
 # Copyright 2015 Matt Hawkins
 #
@@ -47,17 +48,27 @@ class RS0010_screen(object):
   LCD_LINE_1 = 0x80
   LCD_LINE_2 = 0xC0
 
-  # Timing constants
-  E_PULSE = 0.0005
-  E_DELAY = 0.0005
-
   # Operation type when sending data to LCD
   LCD_CHR = True
   LCD_CMD = False
 
+  # Timing constants for low level write operations
+  # NOTE: Enable cycle time must be at least 1 microsecond
+  # NOTE2: These can be zero and the LCD will typically still work OK
+  EDEL_TAS =  0.00001      # Address setup time (TAS)
+  EDEL_PWEH = 0.00001      # Pulse width of enable (PWEH)
+  EDEL_TAH =  0.00001      # Address hold time (TAH)
+
+  # Timing constraints for initialisation steps
+  # NOTE: that post clear display must be at least 6.2ms for OLEDs, as opposed
+  #  to only 1.4ms for HD44780 LCDs. This has caused confusion in the past.
+  #  Setting it to 10ms here to be safe.
+  DEL_INITMID = 0.01       # middle of initial write (min 4.1ms)
+  DEL_INITNEXT = 0.0002    # post second initial write (min 100ns)
+  DEL_POSTCLEAR = 0.01     # post clear display step (busy, min 6.2ms)
+
   def __init__(self, RS, E, D4, D5, D6, D7,
-    LCD_WIDTH=None, LINE_1_REGISTER=None, LINE_2_REGISTER=None,
-    E_PULSE=None, E_DELAY=None):
+    LCD_WIDTH=None, LINE_1_REGISTER=None, LINE_2_REGISTER=None):
 
     self.LCD_RS = RS
     self.LCD_E = E
@@ -75,31 +86,42 @@ class RS0010_screen(object):
     if LINE_2_REGISTER is not None:
       self.LCD_LINE_2 = LINE_2_REGISTER
 
-    if E_PULSE is not None:
-      self.E_PULSE = float(E_PULSE)
-
-    if E_DELAY is not None:
-      self.E_DELAY = float(E_DELAY)
-
-    # Set the RPi pins connected to the LCD to output
-    GPIO.setwarnings(False)
     GPIO.setmode(GPIO.BCM)       # Use BCM GPIO numbers
-    GPIO.setup(self.LCD_E, GPIO.OUT)  # E
-    GPIO.setup(self.LCD_RS, GPIO.OUT) # RS
-    GPIO.setup(self.LCD_D4, GPIO.OUT) # DB4
-    GPIO.setup(self.LCD_D5, GPIO.OUT) # DB5
-    GPIO.setup(self.LCD_D6, GPIO.OUT) # DB6
-    GPIO.setup(self.LCD_D7, GPIO.OUT) # DB7
 
-    # Initialise display
-    self.lcd_byte(0x33, self.LCD_CMD) # 110011 Initialise
-    self.lcd_byte(0x32, self.LCD_CMD) # 110010 Initialise
-    self.lcd_byte(0x06, self.LCD_CMD) # 000110 Cursor move direction
-    self.lcd_byte(0x0C, self.LCD_CMD) # 001100 Display On, Cursor Off, Blink Off
-    self.lcd_byte(0x28, self.LCD_CMD) # 101000 Data length, number of lines, font size
+    # setup all output pins for driving LCD display
+    GPIO.setup(self.LCD_E, GPIO.OUT)  # E
+
+    # safe starting state
+    GPIO.output(self.LCD_E, 0)        # set low as idle state
+    GPIO.setup(self.LCD_RS, GPIO.OUT) # RS
+
+    # initialize LCD data pins for output, idle low
+    GPIO.setup(self.LCD_D4, GPIO.OUT) # DB4
+    GPIO.output(self.LCD_D4, 0)
+    GPIO.setup(self.LCD_D5, GPIO.OUT) # DB5
+    GPIO.output(self.LCD_D5, 0)
+    GPIO.setup(self.LCD_D6, GPIO.OUT) # DB6
+    GPIO.output(self.LCD_D6, 0)
+    GPIO.setup(self.LCD_D7, GPIO.OUT) # DB7
+    GPIO.output(self.LCD_D7, 0)
+   
+    # Initialise display into 4 bit mode, using recommended delays
+    self.lcd_byte(0x33, self.LCD_CMD, self.DEL_INITNEXT, self.DEL_INITMID)
+    self.lcd_byte(0x32, self.LCD_CMD, self.DEL_INITNEXT)
+   
+    # Now perform remainder of display init in 4 bit mode - IMPORTANT!
+    # These steps MUST be exactly as follows, as OLEDs in particular are rather fussy
+    self.lcd_byte(0x28, self.LCD_CMD, self.DEL_INITNEXT)    # two lines and correct font
+    self.lcd_byte(0x08, self.LCD_CMD, self.DEL_INITNEXT)    # display OFF, cursor/blink off
+    self.lcd_byte(0x01, self.LCD_CMD, self.DEL_POSTCLEAR)   # clear display, waiting for longer delay
+    self.lcd_byte(0x06, self.LCD_CMD, self.DEL_INITNEXT)    # entry mode set
+
+    # extra steps required for OLED initialisation (no effect on LCD)
+    self.lcd_byte(0x17, self.LCD_CMD, self.DEL_INITNEXT)    # character mode, power on
+
+    self.lcd_byte(0x0C, self.LCD_CMD, self.DEL_INITNEXT)    # display on, cursor/blink off
 
     self.clear()
-    time.sleep(self.E_DELAY)
 
   def clear(self):
     self.lcd_byte(0x01, self.LCD_CMD) # 000001 Clear display
@@ -108,70 +130,72 @@ class RS0010_screen(object):
   def gpio_cleanup():
     GPIO.cleanup()
 
-  def lcd_byte(self, bits, mode):
-    # Send byte to data pins
-    # bits = data
-    # mode = True  for character
-    #        False for command
+  # =======================================================================
+  # Low level routine to output a byte of data to the LCD display
+  # over the 4 bit interface. Two nibbles are sent, one after the other.
+  # post_delay specifies optional delay to cover busy periods
+  # mid_delay specifies optional delay between 4 bit nibbles (special case)
+  # mode = True for character, False for command
+  def lcd_byte(self, byteVal, mode, post_delay = 0, mid_delay = 0):
+    # convert incoming value into 8 bit array, padding as required
+    bits = bin(byteVal)[2:].zfill(8)
 
-    GPIO.output(self.LCD_RS, mode) # RS
+    # set mode
+    GPIO.output(self.LCD_RS, mode)
 
-    # High bits
-    GPIO.output(self.LCD_D4, False)
-    GPIO.output(self.LCD_D5, False)
-    GPIO.output(self.LCD_D6, False)
-    GPIO.output(self.LCD_D7, False)
-    if bits&0x10==0x10:
-      GPIO.output(self.LCD_D4, True)
-    if bits&0x20==0x20:
-      GPIO.output(self.LCD_D5, True)
-    if bits&0x40==0x40:
-      GPIO.output(self.LCD_D6, True)
-    if bits&0x80==0x80:
-      GPIO.output(self.LCD_D7, True)
+    # Output the four High bits
+    GPIO.output(self.LCD_D7, int(bits[0]))
+    GPIO.output(self.LCD_D6, int(bits[1]))
+    GPIO.output(self.LCD_D5, int(bits[2]))
+    GPIO.output(self.LCD_D4, int(bits[3]))
 
-    # Toggle 'Enable' pin
     self.lcd_toggle_enable()
 
-    # Low bits
-    GPIO.output(self.LCD_D4, False)
-    GPIO.output(self.LCD_D5, False)
-    GPIO.output(self.LCD_D6, False)
-    GPIO.output(self.LCD_D7, False)
-    if bits&0x01==0x01:
-      GPIO.output(self.LCD_D4, True)
-    if bits&0x02==0x02:
-      GPIO.output(self.LCD_D5, True)
-    if bits&0x04==0x04:
-      GPIO.output(self.LCD_D6, True)
-    if bits&0x08==0x08:
-      GPIO.output(self.LCD_D7, True)
+    # Wait for extra mid delay if specified (special case)
+    if mid_delay > 0:
+      time.sleep(mid_delay)
 
-    # Toggle 'Enable' pin
+    # Output the four Low bits
+    GPIO.output(self.LCD_D7, int(bits[4]))
+    GPIO.output(self.LCD_D6, int(bits[5]))
+    GPIO.output(self.LCD_D5, int(bits[6]))
+    GPIO.output(self.LCD_D4, int(bits[7]))
+
     self.lcd_toggle_enable()
+
+    # Wait for extra post delay if specified (covers busy period)
+    if post_delay > 0:
+      time.sleep(post_delay)
 
   def lcd_toggle_enable(self):
-    # Toggle enable
-    time.sleep(self.E_DELAY)
-    GPIO.output(self.LCD_E, True)
-    time.sleep(self.E_PULSE)
-    GPIO.output(self.LCD_E, False)
-    time.sleep(self.E_DELAY)
+    # Toggle 'Enable' pin, wrapping with minimum delays
+    time.sleep(self.EDEL_TAS)   
+    GPIO.output(self.LCD_E, True) 
+    time.sleep(self.EDEL_PWEH)
+    GPIO.output(self.LCD_E, False) 
+    time.sleep(self.EDEL_TAH)     
 
-  def lcd_string(self, message, line):
+  # Send message to display
+  # justify = left (default), right, or center
+  def lcd_string(self, message, justify="left"):
     # Send string to display
-    message = message.ljust(self.LCD_WIDTH," ")
-
-    self.lcd_byte(line, self.LCD_CMD)
+    if justify == "right":
+      message = message.rjust(self.LCD_WIDTH," ")
+    elif justify == "center":
+      message = message.center(self.LCD_WIDTH," ")
+    else:
+      message = message.ljust(self.LCD_WIDTH," ")
 
     for i in range(self.LCD_WIDTH):
-      self.lcd_byte(ord(message[i]),self.LCD_CHR)
+      self.lcd_byte(ord(message[i]), self.LCD_CHR)
 
   def line1(self, message=""):
-    self.lcd_string(message, self.LCD_LINE_1)
+    self.lcd_byte(self.LCD_LINE_1, self.LCD_CMD)
+    self.lcd_string(message)
 
   def line2(self, message=""):
-    self.lcd_string(message, self.LCD_LINE_2)
+    self.lcd_byte(self.LCD_LINE_2, self.LCD_CMD)
+    self.lcd_string(message)
 
   @staticmethod
   def close(self, clear=False):
