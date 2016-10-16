@@ -12,6 +12,17 @@ Currently prototyping on a Raspberry Pi 2.
 * Connect two 5V solar panels to an [MPPT Solar Charger](https://www.sparkfun.com/products/12885) powering the Ardunio+ESP and a [2 Ah LiPo](https://www.sparkfun.com/products/8483) battery.
 * Use the data to create pretty charts to study correlations between temperature, humidity, soil moisture, and sunlight
 
+### Installation
+
+Setup a virtualenv, enter it and install the requirements.
+
+1. `$ sudo apt install python-pip python-virtualenv`
+2. `$ virtualenv --python $(which python2) venv`
+3. `$ source venv/bin/activate`
+4. `$ pip install -r requirements.txt`
+
+To exit the virtualenv simply `$ deactivate` from within the project dir.
+
 ### Resources:
 
 * SparkFun datasheets and hookup tutorials
