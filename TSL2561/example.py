@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-
-from TSL2561 import *
+from __init__ import TSL2561 # use inside package dir
+#from TSL2561 import * # use outside package dir
 
 tsl = TSL2561(bus=1) 
  
