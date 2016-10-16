@@ -29,6 +29,7 @@ I2C on RPi:
 
 OLED Screen:
 * Script from: http://www.raspberrypi-spy.co.uk/2012/07/16x2-lcd-module-control-using-python/
+* [RPi.GPIO from PyPi](https://pypi.python.org/pypi/RPi.GPIO) or Raspbian Apt `$ sudo apt install python-rpi.gpio`
 * [SparkFun OLED Hookup Guide](https://learn.sparkfun.com/tutorials/oled-display-hookup-guide/all)
 * [YouTube - Using a 16x2 LCD Display with a Raspberry Pi](https://www.youtube.com/watch?v=cVdSc8VYVBM)
 
