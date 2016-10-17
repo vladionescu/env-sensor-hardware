@@ -189,13 +189,13 @@ class RS0010_screen(object):
     for i in range(self.LCD_WIDTH):
       self.lcd_byte(ord(message[i]), self.LCD_CHR)
 
-  def line1(self, message=""):
+  def line1(self, message="", justify="left"):
     self.lcd_byte(self.LCD_LINE_1, self.LCD_CMD)
-    self.lcd_string(message)
+    self.lcd_string(message, justify)
 
-  def line2(self, message=""):
+  def line2(self, message="", justify="left"):
     self.lcd_byte(self.LCD_LINE_2, self.LCD_CMD)
-    self.lcd_string(message)
+    self.lcd_string(message, justify)
 
   @staticmethod
   def close(self, clear=False):
