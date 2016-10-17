@@ -114,7 +114,7 @@ class TSL2561:
         self.address = address
         self.i2cbus = bus  
     def __init__(self, bus=0):
-        self.address = 0x39
+        self.address = self.ADDR_NORMAL
         self.i2cbus = bus
     def foundSensor(self):
         with i2c.I2CMaster(self.i2cbus) as bus:    
@@ -124,7 +124,7 @@ class TSL2561:
             )
         
             state = read_results[0][0]    
-            print("%02x" % state)
+        #   print("%02x" % state)
             if state == 0x0A:
                 return True
         return False
@@ -163,10 +163,10 @@ class TSL2561:
         
         with i2c.I2CMaster(self.i2cbus) as bus:    
             read_results = bus.transaction(
-                i2c.writing_bytes(address, self.COMMAND_BIT | self.WORD_BIT | self.REGISTER_CHAN1_LOW ),
-                i2c.reading(address, 2),
-                i2c.writing_bytes(address, self.COMMAND_BIT | self.WORD_BIT | self.REGISTER_CHAN0_LOW ),
-                i2c.reading(address, 2)        
+                i2c.writing_bytes(self.address, self.COMMAND_BIT | self.WORD_BIT | self.REGISTER_CHAN1_LOW ),
+                i2c.reading(self.address, 2),
+                i2c.writing_bytes(self.address, self.COMMAND_BIT | self.WORD_BIT | self.REGISTER_CHAN0_LOW ),
+                i2c.reading(self.address, 2)        
             )
        
         self.disable()  
@@ -295,55 +295,3 @@ class TSL2561:
 
          # Signal I2C had no errors
         return lux
-
-address = 0x39
-xad = 0x0A
-
-iodir_register = 0x00
-gpio_register = 0x09
-
-with i2c.I2CMaster(1) as bus:    
-    read_results = bus.transaction(
-        i2c.writing_bytes(address, xad),
-        i2c.reading(address, 1)
-    )
-        
-    state = read_results[0][0]    
-    print("%02x" % state)
-    
-    # set timing and gain 101ms & 16x gain
-    bus.transaction(
-        i2c.writing_bytes(address, 0x80 | 0x01, 0x01 | 0x10 )
-    )    
-    # enable
-    bus.transaction(
-        i2c.writing_bytes(address, 0x80, 0x03 )
-    )
-    # wait
-    time.sleep(0.102)
-    # full luminosity
-    read_results = bus.transaction(
-        i2c.writing_bytes(address, 0x80 | 0x20 | 0x0E ),
-        i2c.reading(address, 2),
-        i2c.writing_bytes(address, 0x80 | 0x20 | 0x0C ),
-        i2c.reading(address, 2)        
-    )
-    # disable
-    bus.transaction(
-        i2c.writing_bytes(address, 0x80, 0x00 )
-    )
-        
-    print("%02x %02x" % (read_results[0][0], read_results[0][1]))
-    print("%02x %02x" % (read_results[1][0], read_results[1][1]))
-
-    full = read_results[1][1]
-    full = full << 8
-    full += read_results[1][0]
-    
-    infra = read_results[0][1]
-    infra = infra << 8
-    infra += read_results[0][0]
-
-    print("Full:     %04x" % full)
-    print("Infrared: %04x" % infra)
-    print("Visible:  %04x" % (full - infra) )
