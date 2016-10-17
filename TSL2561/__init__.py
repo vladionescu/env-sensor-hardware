@@ -203,6 +203,11 @@ class TSL2561:
 #            print("-- visible: %#04x" % result)
             return result
         return 0
+    def getLux(self):
+        full = self.getLuminosity(self.FULLSPECTRUM)
+        infrared = self.getLuminosity(self.INFRARED)
+
+        return self.calculateLux(full, infrared)
     def calculateLux(self, ch0, ch1):
         # default is no scaling ... integration time = 402ms
         chScale = (1 << self.LUX_CHSCALE);
