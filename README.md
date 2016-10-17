@@ -17,11 +17,27 @@ Currently prototyping on a Raspberry Pi 2.
 Setup a virtualenv, enter it and install the requirements.
 
 1. `$ sudo apt install python-pip python-virtualenv`
-2. `$ virtualenv --python $(which python2) venv`
+2. `$ virtualenv --python $(which python3) venv`
 3. `$ source venv/bin/activate`
 4. `$ pip install -r requirements.txt`
 
 To exit the virtualenv simply `$ deactivate` from within the project dir.
+
+### Usage
+
+Enter the virtualenv first.
+
+```
+$ source venv/bin/activate
+```
+
+Run `logger.py` to get the current sensor values printed on the OLED screen. CTRL+C to put the screen in a safe state and stop.
+
+```
+$ ./logger.py
+```
+
+You can also try the `example.py` scripts in each device driver directory. These are useful for verifying individual device operation.
 
 ### Resources:
 
