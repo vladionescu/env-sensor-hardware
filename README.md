@@ -4,13 +4,13 @@ Attempting to use an [Si7021 Humidity and Temperature Sensor](https://www.sparkf
 
 Currently prototyping on a Raspberry Pi 2.
 
-### Future plans include:
+## Includes
 
-* Run everything from an Arduino Micro clone
-* Use an [ESP8266](https://www.sparkfun.com/products/13678) to send data to a sink at regular intervals
-* Add a [Capacitive Soil Moisture Sensor](https://www.dfrobot.com/wiki/index.php/Capacitive_Soil_Moisture_Sensor_SKU:SEN0193)
-* Connect two 5V solar panels to an [MPPT Solar Charger](https://www.sparkfun.com/products/12885) powering the Ardunio+ESP and a [2 Ah LiPo](https://www.sparkfun.com/products/8483) battery.
-* Use the data to create pretty charts to study correlations between temperature, humidity, soil moisture, and sunlight
+Drivers for:
+
+* RS0010 screen controller used in [SparkFun's Basic 16x2 Character OLED](https://www.sparkfun.com/products/11987)
+* Si7021 humidity and temperature package used in [SparkFun Humidity and Temperature Sensor Breakout](https://www.sparkfun.com/products/13763)
+* TSL2561 luminosity sensor used in [SparkFun Luminosity Sensor Breakout ](https://www.sparkfun.com/products/12055)
 
 ### Installation
 
@@ -39,7 +39,15 @@ $ ./logger.py
 
 You can also try the `example.py` scripts in each device driver directory. These are useful for verifying individual device operation.
 
-### Resources:
+### Future Plans
+
+* Run everything from an Arduino Micro clone
+* Use an [ESP8266](https://www.sparkfun.com/products/13678) to send data to a sink at regular intervals
+* Add a [Capacitive Soil Moisture Sensor](https://www.dfrobot.com/wiki/index.php/Capacitive_Soil_Moisture_Sensor_SKU:SEN0193)
+* Connect two 5V solar panels to an [MPPT Solar Charger](https://www.sparkfun.com/products/12885) powering the Ardunio+ESP and a [2 Ah LiPo](https://www.sparkfun.com/products/8483) battery.
+* Use the data to create pretty charts to study correlations between temperature, humidity, soil moisture, and sunlight
+
+### Resources
 
 * SparkFun datasheets and hookup tutorials
 * [Raspberry Pi B+ Pinout](http://www.raspberrypi-spy.co.uk/wp-content/uploads/2012/06/Raspberry-Pi-GPIO-Layout-Model-B-Plus-rotated-2700x900.png)
